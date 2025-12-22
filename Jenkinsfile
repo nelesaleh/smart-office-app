@@ -53,7 +53,7 @@ pipeline {
                     
                     // 👇 أضفنا --validate=false لتجاوز تدقيق الـ API
                     sh "kubectl apply -f ${K8S_DIR}/backend.yaml --validate=false"
-                    sh "kubectl apply -f ${K8S_DIR}/monitor.yaml --validate=false"
+                  //  sh "kubectl apply -f ${K8S_DIR}/monitor.yaml --validate=false"
                 }
             }
         }

@@ -44,14 +44,17 @@ pipeline {
             }
         }
 
-       stage('Deploy to K8s') {
+        stage('Deploy to K8s') {
             steps {
-                withCredentials([file(credentialsId: 'k8s-config', variable: 'KUBECONFIG')]) {
-                    script {
-                        echo "☸️ Deploying to Kubernetes..."
-                        sh "kubectl apply -f ${K8S_DIR}/backend.yaml || true"
-                        sh "kubectl apply -f ${K8S_DIR}/monitor.yaml || true"
-                    }
+                script {
+                    echo "☸️ Deploying to Kubernetes..."
+                    
+                    // ✅ التعديل هنا: استخدام الملف الموجود في مساحة العمل (Workspace)
+                    env.KUBECONFIG = "${WORKSPACE}/kubeconfig_portable"
+                    
+                    // ✅ تم إزالة (|| true) لنكتشف الأخطاء الحقيقية إن وجدت
+                    sh "kubectl apply -f ${K8S_DIR}/backend.yaml"
+                    sh "kubectl apply -f ${K8S_DIR}/monitor.yaml"
                 }
             }
         }

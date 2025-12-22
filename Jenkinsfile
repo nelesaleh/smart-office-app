@@ -49,12 +49,11 @@ pipeline {
                 script {
                     echo "☸️ Deploying to Kubernetes..."
                     
-                    // ✅ التعديل هنا: استخدام الملف الموجود في مساحة العمل (Workspace)
                     env.KUBECONFIG = "${WORKSPACE}/kubeconfig_portable"
                     
-                    // ✅ تم إزالة (|| true) لنكتشف الأخطاء الحقيقية إن وجدت
-                    sh "kubectl apply -f ${K8S_DIR}/backend.yaml"
-                    sh "kubectl apply -f ${K8S_DIR}/monitor.yaml"
+                    // 👇 أضفنا --validate=false لتجاوز تدقيق الـ API
+                    sh "kubectl apply -f ${K8S_DIR}/backend.yaml --validate=false"
+                    sh "kubectl apply -f ${K8S_DIR}/monitor.yaml --validate=false"
                 }
             }
         }

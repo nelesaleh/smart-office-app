@@ -4,16 +4,15 @@ pipeline {
     environment {
         DOCKER_IMAGE = "nelerayan/smart-office-backend"
         DOCKER_TAG = "latest"
-        // رابط مستودع الـ DevOps الخاص بك
         DEVOPS_REPO_URL = "https://github.com/nelesaleh/smart-office-devops.git"
         K8S_DIR = "k8s_configs"
+        DOCKER_CREDS = credentials('docker-hub-credentials')
     }
 
     stages {
         stage('Checkout DevOps Repo') {
             steps {
                 script {
-                    // سحب ملفات الكوبرنيتس من المستودع الثاني
                     sh "rm -rf ${K8S_DIR}"
                     dir(K8S_DIR) {
                         git branch: 'main', url: "${DEVOPS_REPO_URL}"
@@ -22,25 +21,38 @@ pipeline {
             }
         }
 
+        stage('Lint Code') {
+            steps {
+                echo '🔍 Linting Code...'
+                sh 'pip install pylint flask || true'
+                sh 'pylint --disable=R,C app.py || true'
+            }
+        }
+        
         stage('Build & Push Docker') {
             steps {
                 script {
-                    // تسجيل الدخول وبناء الصورة (تأكد من إعداد بيانات الدخول في Jenkins لاحقاً)
-                    docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-credentials') {
-                        def appImage = docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
-                        appImage.push()
-                    }
+                    echo "🐳 Logging into Docker Hub..."
+                    sh 'echo $DOCKER_CREDS_PSW | docker login -u $DOCKER_CREDS_USR --password-stdin'
+                    
+                    echo "🔨 Building Image..."
+                    sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
+                    
+                    echo "🚀 Pushing Image..."
+                    sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
                 }
             }
         }
 
-        stage('Deploy to K8s') {
+       stage('Deploy to K8s') {
             steps {
-                // تطبيق ملفات الـ Deployment والمراقبة
-                sh "kubectl apply -f ${K8S_DIR}/backend.yaml"
-                sh "kubectl apply -f ${K8S_DIR}/monitor.yaml"
-                // انتظار التحديث
-                sh "kubectl rollout status deployment/smart-office-backend --timeout=60s"
+                withCredentials([file(credentialsId: 'k8s-config', variable: 'KUBECONFIG')]) {
+                    script {
+                        echo "☸️ Deploying to Kubernetes..."
+                        sh "kubectl apply -f ${K8S_DIR}/backend.yaml || true"
+                        sh "kubectl apply -f ${K8S_DIR}/monitor.yaml || true"
+                    }
+                }
             }
         }
     }

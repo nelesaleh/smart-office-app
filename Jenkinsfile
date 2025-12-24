@@ -48,22 +48,10 @@ pipeline {
 
         stage('Deploy to K8s') {
             steps {
-                script {
-                    echo "☸️ Deploying to Kubernetes..."
-                    
-                    env.KUBECONFIG = "${WORKSPACE}/kubeconfig_portable"
-                    
-                    // Apply the configuration (using validate=false to skip strict API checks)
-                    sh "kubectl apply -f ${K8S_DIR}/backend.yaml --validate=false"
-                    // sh "kubectl apply -f ${K8S_DIR}/monitor.yaml --validate=false"
-
-                    // UPDATE 2: Force Kubernetes to restart the pods to pull the new image
-                    // Without this, K8s might keep running the old image since the YAML didn't change
-                    sh "kubectl rollout restart deployment smart-office-backend"
-                    
-                    echo "✅ Deploy Finished!"
-                }
-            }
+        // يجب وضع الأمر داخل هذه الكتلة ليتم التعرف على الكلاستر
+        withKubeConfig([credentialsId: 'اسم-الـ-secret-الخاص-بك-هنا']) {
+            sh 'kubectl apply -f k8s_configs/backend.yaml --validate=false'
+        }
         }
     }
 }

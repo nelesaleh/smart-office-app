@@ -25,7 +25,9 @@ pipeline {
             steps {
                 echo '🔍 Linting Code...'
                 sh 'pip install pylint flask || true'
-                sh 'pylint --disable=R,C app.py || true'
+                
+                // UPDATE 1: Changed to 'run.py' because 'app.py' no longer exists or is not the main entry point
+                sh 'pylint --disable=R,C run.py || true'
             }
         }
         
@@ -51,9 +53,15 @@ pipeline {
                     
                     env.KUBECONFIG = "${WORKSPACE}/kubeconfig_portable"
                     
-                    // 👇 أضفنا --validate=false لتجاوز تدقيق الـ API
+                    // Apply the configuration (using validate=false to skip strict API checks)
                     sh "kubectl apply -f ${K8S_DIR}/backend.yaml --validate=false"
-                  //  sh "kubectl apply -f ${K8S_DIR}/monitor.yaml --validate=false"
+                    // sh "kubectl apply -f ${K8S_DIR}/monitor.yaml --validate=false"
+
+                    // UPDATE 2: Force Kubernetes to restart the pods to pull the new image
+                    // Without this, K8s might keep running the old image since the YAML didn't change
+                    sh "kubectl rollout restart deployment smart-office-backend"
+                    
+                    echo "✅ Deploy Finished!"
                 }
             }
         }

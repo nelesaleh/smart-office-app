@@ -4,4 +4,3 @@ gunicorn
 prometheus-flask-exporter
 Flask-PyMongo
 pytz
-prometheus-flask-exporter

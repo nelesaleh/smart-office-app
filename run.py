@@ -36,4 +36,4 @@ if __name__ == '__main__':
     threading.Thread(target=energy_loop, args=(app,), daemon=True).start()
 
     # Start the Flask development server
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)

@@ -5,11 +5,12 @@ from flask_pymongo import PyMongo
 from flask_cors import CORS
 from prometheus_flask_exporter import PrometheusMetrics
 
-# 1. تعريف الأدوات خارج الدالة (Global) لتجنب أخطاء التكرار في الاختبارات
+# 1. Define global instances
 mongo = PyMongo()
-metrics = PrometheusMetrics(app=None) # نهيئها فارغة
+# Initialize metrics without app first to avoid circular import issues
+metrics = PrometheusMetrics(app=None)
 
-# تعريف المقياس مرة واحدة فقط هنا
+# Define the metric once globally
 stock_gauge = metrics.info('stock_value', 'Simulated Stock Value')
 
 def create_app():
@@ -20,32 +21,36 @@ def create_app():
         template_folder='../templates'
     )
 
-    # 2. الإعدادات
+    # 2. Configuration
+    # We use os.getenv to support Docker/K8s, but default to localhost for local testing
     app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/smart_office")
     app.config["SECRET_KEY"] = "dev"
 
-    # 3. ربط الأدوات بالتطبيق
+    # 3. Initialize Extensions
     mongo.init_app(app)
+    # Enable CORS for all domains to fix frontend connection issues
     CORS(app)
-    metrics.init_app(app) # تفعيل المراقبة هنا
+    # Initialize Prometheus
+    metrics.init_app(app)
 
-    # 4. نقطة النهاية الجديدة للأسهم (Stock Route)
+    # 4. Stock API Route (Required for DevOps/Grafana demo)
     @app.route('/api/stock')
     def get_stock():
         val = random.randint(50, 150)
-        stock_gauge.set(val) # تحديث القيمة في Prometheus
+        stock_gauge.set(val)
         return jsonify({"current_stock": val})
 
-    # 5. نقطة فحص الصحة
+    # 5. Health Check Route
     @app.route('/health')
     def health_check():
         try:
+            # Quick ping to check DB connection
             mongo.db.command('ping')
             return jsonify(status="healthy", db="connected"), 200
         except Exception as e:
             return jsonify(status="unhealthy", error=str(e)), 500
 
-    # تسجيل المخططات
+    # 6. Import & Register Blueprints
     from .blueprints.main import main_bp
     from .blueprints.control import control_bp
     from .blueprints.energy import energy_bp

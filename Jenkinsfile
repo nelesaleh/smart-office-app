@@ -7,13 +7,16 @@ pipeline {
         DEVOPS_REPO_URL = "https://github.com/nelesaleh/smart-office-devops.git"
         K8S_DIR = "k8s_configs"
         DOCKER_CREDS = credentials('docker-hub-credentials')
-        K8S_CRED_ID = 'k8s-kubeconfig' 
+        
+        // ✅ تم التصحيح: الاسم يطابق الآن الموجود في جينكينز (k8s-config)
+        K8S_CRED_ID = 'k8s-config' 
     }
 
     stages {
         stage('Checkout DevOps Repo') {
             steps {
                 script {
+                    // سحب ملفات الـ Kubernetes من الريبو
                     sh "rm -rf ${K8S_DIR}"
                     dir(K8S_DIR) {
                         git branch: 'main', url: "${DEVOPS_REPO_URL}"
@@ -24,7 +27,7 @@ pipeline {
 
         stage('Lint Code') {
             steps {
-                // ✅ تم التعديل: إزالة dir لأن الملفات في المجلد الرئيسي
+                // الملفات في المجلد الرئيسي، لا نحتاج للدخول لمجلدات فرعية
                 echo '🔍 Linting Code...'
                 sh 'pip install pylint flask || true'
                 sh 'pylint --disable=R,C run.py || true'
@@ -34,12 +37,11 @@ pipeline {
         stage('Build & Push Docker') {
             steps {
                 script {
-                    // ✅ تم التعديل: إزالة dir لأن الـ Dockerfile في المجلد الرئيسي
+                    // الـ Dockerfile في المجلد الرئيسي
                     echo "🐳 Logging into Docker Hub..."
                     sh 'echo $DOCKER_CREDS_PSW | docker login -u $DOCKER_CREDS_USR --password-stdin'
                     
                     echo "🔨 Building Image..."
-                    // الآن سيبحث عن Dockerfile في المكان الحالي (.)
                     sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
                     
                     echo "🚀 Pushing Image..."
@@ -52,10 +54,19 @@ pipeline {
             steps {
                 script {
                     echo "☸️ Deploying to Kubernetes..."
+                    
+                    // استخدام الـ ID الصحيح (k8s-config)
                     withKubeConfig([credentialsId: K8S_CRED_ID]) {
+                        
                         sh "kubectl apply -f ${WORKSPACE}/${K8S_DIR}/backend.yaml --validate=false"
+                        
+                        // إعادة تشغيل الـ Pods لسحب الصورة الجديدة
                         sh "kubectl rollout restart deployment smart-office-backend"
+                        
+                        // التأكد من الحالة
+                        sh "kubectl get pods"
                     }
+                    
                     echo "✅ Deploy Finished!"
                 }
             }

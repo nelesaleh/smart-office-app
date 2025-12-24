@@ -8,7 +8,7 @@ pipeline {
         K8S_DIR = "k8s_configs"
         DOCKER_CREDS = credentials('docker-hub-credentials')
         
-        // ⚠️ Make sure this ID matches what you named your secret in Jenkins
+        // ⚠️ Ensure this ID matches the one you created in Jenkins for your kubeconfig
         K8S_CRED_ID = 'k8s-kubeconfig' 
     }
 
@@ -27,10 +27,11 @@ pipeline {
 
         stage('Lint Code') {
             steps {
-                // 📂 Enter the application directory
-                dir('backend') { 
+                // 📂 UPDATED: Using 'smart-office-app' since the folder was not renamed
+                dir('smart-office-app') { 
                     echo '🔍 Linting Code...'
                     sh 'pip install pylint flask || true'
+                    // Using run.py as discussed previously
                     sh 'pylint --disable=R,C run.py || true'
                 }
             }
@@ -39,8 +40,8 @@ pipeline {
         stage('Build & Push Docker') {
             steps {
                 script {
-                    // 📂 Enter the application directory to find Dockerfile
-                    dir('backend') {
+                    // 📂 UPDATED: Pointing to 'smart-office-app' to find the Dockerfile
+                    dir('smart-office-app') {
                         echo "🐳 Logging into Docker Hub..."
                         sh 'echo $DOCKER_CREDS_PSW | docker login -u $DOCKER_CREDS_USR --password-stdin'
                         
@@ -59,8 +60,8 @@ pipeline {
                 script {
                     echo "☸️ Deploying to Kubernetes..."
                     
-                    // ✅ FIXED: Using withKubeConfig plugin instead of manual file path
-                    // This securely injects the kubeconfig for the commands inside the block
+                    // ✅ FIXED: Using withKubeConfig to inject credentials securely
+                    // This prevents the HTML/Login error you saw earlier
                     withKubeConfig([credentialsId: K8S_CRED_ID]) {
                         
                         // Apply the configuration
@@ -69,7 +70,7 @@ pipeline {
                         // Force restart to pull the new image
                         sh "kubectl rollout restart deployment smart-office-backend"
                         
-                        // Optional: Check status
+                        // Optional: Check status to see if pods are coming up
                         sh "kubectl get pods"
                     }
                     

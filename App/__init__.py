@@ -1,12 +1,9 @@
-# App/__init__.py
-
+import os  # <--- إضافة هامة
 from flask import Flask
 from flask_pymongo import PyMongo
 
-# 1. Create a global mongo instance that blueprints can import.
-# It will be configured inside the factory.
+# 1. Create a global mongo instance
 mongo = PyMongo()
-
 
 def create_app():
     """Application factory function."""
@@ -16,16 +13,14 @@ def create_app():
         template_folder='../templates'
     )
 
-    # 2. --- MongoDB Configuration ---
-    # This connection string points to your local MongoDB server
-    # and creates a database named 'smart_office'.
-    app.config["MONGO_URI"] = "mongodb://localhost:27017/smart_office"
+    # 2. MongoDB Configuration (Fix for Kubernetes)
+    # هذا السطر سيجعل التطبيق يعمل محلياً وعلى كوبرنيتس في نفس الوقت
+    app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/smart_office")
 
-    # 3. Initialize the PyMongo extension with your app.
+    # 3. Initialize PyMongo
     mongo.init_app(app)
 
     # --- Import & Register Blueprints ---
-    # This part stays the same. The blueprints will be updated separately.
     from .blueprints.main import main_bp
     from .blueprints.control import control_bp
     from .blueprints.energy import energy_bp
@@ -34,7 +29,6 @@ def create_app():
     from .blueprints.wellness import wellness_bp
     from .blueprints.automation_rules import automation_rules_bp
 
-    # Register the blueprints with the app
     app.register_blueprint(main_bp)
     app.register_blueprint(control_bp)
     app.register_blueprint(energy_bp)

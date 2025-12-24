@@ -1,17 +1,12 @@
-import os
-import random
-from flask import Flask, jsonify
+# App/__init__.py
+
+from flask import Flask
 from flask_pymongo import PyMongo
-from flask_cors import CORS
-from prometheus_flask_exporter import PrometheusMetrics
 
-# 1. Define global instances
+# 1. Create a global mongo instance that blueprints can import.
+# It will be configured inside the factory.
 mongo = PyMongo()
-# Initialize metrics without app first to avoid circular import issues
-metrics = PrometheusMetrics(app=None)
 
-# Define the metric once globally
-stock_gauge = metrics.info('stock_value', 'Simulated Stock Value')
 
 def create_app():
     """Application factory function."""
@@ -21,36 +16,16 @@ def create_app():
         template_folder='../templates'
     )
 
-    # 2. Configuration
-    # We use os.getenv to support Docker/K8s, but default to localhost for local testing
-    app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/smart_office")
-    app.config["SECRET_KEY"] = "dev"
+    # 2. --- MongoDB Configuration ---
+    # This connection string points to your local MongoDB server
+    # and creates a database named 'smart_office'.
+    app.config["MONGO_URI"] = "mongodb://localhost:27017/smart_office"
 
-    # 3. Initialize Extensions
+    # 3. Initialize the PyMongo extension with your app.
     mongo.init_app(app)
-    # Enable CORS for all domains to fix frontend connection issues
-    CORS(app)
-    # Initialize Prometheus
-    metrics.init_app(app)
 
-    # 4. Stock API Route (Required for DevOps/Grafana demo)
-    @app.route('/api/stock')
-    def get_stock():
-        val = random.randint(50, 150)
-        stock_gauge.set(val)
-        return jsonify({"current_stock": val})
-
-    # 5. Health Check Route
-    @app.route('/health')
-    def health_check():
-        try:
-            # Quick ping to check DB connection
-            mongo.db.command('ping')
-            return jsonify(status="healthy", db="connected"), 200
-        except Exception as e:
-            return jsonify(status="unhealthy", error=str(e)), 500
-
-    # 6. Import & Register Blueprints
+    # --- Import & Register Blueprints ---
+    # This part stays the same. The blueprints will be updated separately.
     from .blueprints.main import main_bp
     from .blueprints.control import control_bp
     from .blueprints.energy import energy_bp
@@ -59,6 +34,7 @@ def create_app():
     from .blueprints.wellness import wellness_bp
     from .blueprints.automation_rules import automation_rules_bp
 
+    # Register the blueprints with the app
     app.register_blueprint(main_bp)
     app.register_blueprint(control_bp)
     app.register_blueprint(energy_bp)
